@@ -130,10 +130,10 @@ class EventHandler:
     def __call__(self, *args, **kwargs) -> List[Union[asyncio.Future, threading.Thread]]:
         self._event_count += 1
         return [handler(*args, **kwargs) for handler in self._handlers]
-            
+
     def __iter__(self):
         return iter(self._handlers)
-
+            
 
 class EventEmitter:
     "Event handling class"
@@ -167,12 +167,14 @@ class EventEmitter:
         return [event_callable.original_listener for event_callable in self.__handlers.get(event_name, EventHandler()).handlers]
 
     def on(self, event_name: str, listener: Callable):
+        self.emit("newListener", event_name, listener)
         self.__create_if_not_exists(event_name)
         self.__handlers[event_name].append(listener)
         self.__count_check(event_name)
         return self
 
     def once(self, event_name: str, listener: Callable):
+        self.emit("newListener", event_name, listener)
         self.__create_if_not_exists(event_name)
         self.__handlers[event_name].append(listener, once=True)
         self.__count_check(event_name)
@@ -181,12 +183,14 @@ class EventEmitter:
     add_listener = on
 
     def prepend_listener(self, event_name: str, listener: Callable):
+        self.emit("newListener", event_name, listener)
         self.__create_if_not_exists(event_name)
         self.__handlers[event_name].prepend(listener)
         self.__count_check(event_name)
         return self
 
     def prepend_once_listener(self, event_name: str, listener: Callable):
+        self.emit("newListener", event_name, listener)
         self.__create_if_not_exists(event_name)
         self.__handlers[event_name].prepend(listener, once=True)
         self.__count_check(event_name)
@@ -194,7 +198,9 @@ class EventEmitter:
 
     def remove_all_listeners(self, event_name: str):
         if event_name in self.__handlers:
-            del self.__handlers[event_name]
+            handlers = self.__handlers.pop(event_name)
+            for event_callable in handlers: # type: EventCallable
+                self.emit("removeListener", event_name, event_callable.original_listener)
         return self
 
     def remove_listener(self, event_name: str, listener: Callable):
@@ -202,6 +208,7 @@ class EventEmitter:
             self.__handlers[event_name].remove(listener)
             if not len(self.__handlers[event_name]):
                 del self.__handlers[event_name]
+            self.emit("removeListener", event_name, listener)
         return self
 
     @property
