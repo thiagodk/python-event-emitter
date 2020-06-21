@@ -131,6 +131,9 @@ class EventHandler:
         self._event_count += 1
         return [handler(*args, **kwargs) for handler in self._handlers]
             
+    def __iter__(self):
+        return iter(self._handlers)
+
 
 class EventEmitter:
     "Event handling class"
