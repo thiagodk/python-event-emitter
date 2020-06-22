@@ -2,7 +2,7 @@
 from distutils.core import setup
 
 setup(
-    name="event-emitter",
+    name="event-emitter-js",
     version="0.1.2",
     description="JavaScript-like EventEmitter class for Python 3",
     author="Thiago Costa",
