@@ -7,6 +7,7 @@ setup(
     description="JavaScript-like EventEmitter class for Python 3",
     author="Thiago Costa",
     author_email="admin@rootbsd.info",
+    url="https://github.com/thiagodk/python-event-emitter",
     package_dir={"": "src"},
     packages=["event_emitter"]
 )
