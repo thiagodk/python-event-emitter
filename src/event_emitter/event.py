@@ -94,10 +94,12 @@ class EventHandler:
 
         if not callable(listener):
             raise TypeError("listener is not callable")
-        try:
-            self._handlers.remove(listener)
-        except ValueError:
+        for event_callable in self._handlers:
+            if event_callable._original_listener == listener:
+                break
+        else:
             return False
+        self._handlers.remove(event_callable)
         return True
 
     def warn(self, event_emitter_class: Type["EventEmitter"], event_name: str):
