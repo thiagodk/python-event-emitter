@@ -46,20 +46,23 @@ class EventCallable:
     def original_listener(self) -> Callable:
         return self._original_listener
 
-    def once(self, event_handler: "EventHandler") -> Union[asyncio.Future, threading.Thread]:
-        def _once_wrapper(*args, **kwargs):
-            try:
-                self._original_listener(*args, **kwargs)
-            finally:
-                event_handler.remove(self._original_listener)
-        async def _async_once_wrapper(*args, **kwargs):
-            try:
-                await self._original_listener(*args, **kwargs)
-            finally:
-                event_handler.remove(self._original_listener)
-        if asyncio.iscoroutinefunction(self._original_listener):
-            self._listener = _async_once_wrapper
-        self._listener = _once_wrapper
+    @classmethod
+    def once(cls, event_emitter: "EventEmitter", event_name: str, loop=None) -> Callable:
+        def _once_decorator(func: Callable) -> Callable:
+            self = cls(func, loop)
+            def _once_wrapper(*args, **kwargs):
+                try:
+                    func(*args, **kwargs)
+                finally:
+                    event_emitter.remove_listener(event_name, func)
+            async def _async_once_wrapper(*args, **kwargs):
+                try:
+                    await func(*args, **kwargs)
+                finally:
+                    event_emitter.remove_listener(event_name, func)
+            self._listener = _async_once_wrapper if asyncio.iscoroutinefunction(func) else _once_wrapper
+            return self
+        return _once_decorator
 
 class EventHandler:
     "Container for event listeners"
@@ -69,23 +72,19 @@ class EventHandler:
         self._warned = False # type: bool
         self._handlers = [] # type: List[EventCallable]
 
-    def append(self, listener: Callable, once: bool=False) -> Callable:
+    def append(self, listener: Callable) -> Callable:
         "Add a callable at the end of handlers chain"
 
         if not isinstance(listener, EventCallable):
             listener = EventCallable(listener)
-        if once:
-            listener.once(self)
         self._handlers.append(listener)
         return listener
 
-    def prepend(self, listener: Callable, once: bool=False) -> Callable:
+    def prepend(self, listener: Callable) -> Callable:
         "Add a callable at the begining of handlers chain"
 
         if not isinstance(listener, EventCallable):
             listener = EventCallable(listener)
-        if once:
-            listener.once(self)
         self._handlers.insert(0, listener)
         return listener
 
@@ -177,8 +176,9 @@ class EventEmitter:
 
     def once(self, event_name: str, listener: Callable):
         self.emit("newListener", event_name, listener)
+        listener = EventCallable.once(self, event_name)(listener)
         self.__create_if_not_exists(event_name)
-        self.__handlers[event_name].append(listener, once=True)
+        self.__handlers[event_name].append(listener)
         self.__count_check(event_name)
         return self
 
@@ -193,6 +193,7 @@ class EventEmitter:
 
     def prepend_once_listener(self, event_name: str, listener: Callable):
         self.emit("newListener", event_name, listener)
+        listener = EventCallable.once(self, event_name)(listener)
         self.__create_if_not_exists(event_name)
         self.__handlers[event_name].prepend(listener, once=True)
         self.__count_check(event_name)
